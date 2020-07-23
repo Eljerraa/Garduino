@@ -27,50 +27,54 @@ void loop() {
 // Displays an error message and lights the red LED if it can't get a clock reading.
 // In case the clock starts working again, the red LED will switch off.
 if (RTC.read(tm)) {
+  
+  byte currentHour = tm.Hour;
+  byte currentMinute = tm.Minute;
+  byte currentMonth = tm.Month;
   digitalWrite(pumpPin, LOW);
   
 // Checks every 2 hours, on the hour
- if ((tm.Minute == 0) && (tm.Hour % 2 == 0)) {
+ if ((currentMinute == 0) && (currentHour % 2 == 0)) {
   
   // Checks if it's spring/summer time (April to October)
-  if ((tm.Month >= 4) && (tm.Month <=10)){
+  if ((currentMonth >= 4) && (currentMonth <=10)) {
     
     // Summer Mode
     // Checks if it's dawn or dusk (6am-8am OR 8pm-10pm)
-    if ((tm.Hour >= 6) && (tm.Hour <=8)) || ((tm.Hour >= 20) && (tm.Hour <=22)) {
-      soilThreshold = 50 }
+    if (((currentHour >= 6) && (currentHour <=8)) || ((currentHour >= 20) && (currentHour <=22))) {
+      soilThreshold = 50; }
       
     // Between 10am and 6pm is summer day time.
     // The plant must be watered more when it's hot.
-    else if ((tm.Hour >= 10) && (tm.Hour <=18)){
-      float temperature = checkTemperature()
+    else if ((currentHour >= 10) && (currentHour <=18)){
+      float temperature = checkTemperature();
       if (temperature >= 35){
-        soilThreshold = 45 }
+        soilThreshold = 45; }
       else {
-        soilThreshold = 35 }
+        soilThreshold = 35; }
     }      
     // Outside of these hours is summer night time.
     else {
-      soilThreshold = 35 }      
+      soilThreshold = 35; }      
   }  
   else {
     // Winter mode
     // Checks if it's dawn or dusk (8am-10am OR 4pm-6pm (Winter Mode))
-    if ((tm.Hour >= 8) && (tm.Hour <=10)) || ((tm.Hour >= 16) && (tm.Hour <=18)) {
-      soilThreshold = 40 }
+    if (((currentHour >= 8) && (currentHour <=10)) || ((currentHour >= 16) && (currentHour<=18))) {
+      soilThreshold = 40; }
       
     // Between 12noon and 8pm is winter day time.
-    // The plant must not be watered when it's too cold.
-    else if ((tm.Hour >= 12) && (tm.Hour <=20)){
-      float temperature = checkTemperature()
+    // The plant must NOT be watered when it's too cold.
+    else if ((currentHour >= 12) && (currentHour <=20)){
+      float temperature = checkTemperature();
       if (temperature <= 10){
-        soilThreshold = 0 }
+        soilThreshold = 0; }
       else {
-        soilThreshold = 30 }
+        soilThreshold = 30; }
     }
     // Outside of these hours is winter night time. The plant should not be watered at all.
     else {
-      soilThreshold = 0 }
+      soilThreshold = 0; }
  }
  
 // Checks the soil moisture against the current Threshold
@@ -87,7 +91,7 @@ else {
   else {
     Serial.println("DS1307 read error!  Please check the circuitry.");
     Serial.println(); }
-  digitalWrite(pumpPin, HIGH); }
+  digitalWrite(redLED, HIGH); }
   delay(1000);
 }
 
@@ -115,64 +119,35 @@ void drySoil(byte soilThreshold){
   Serial.println("%");
 
   if (moisturePercentage <= soilThreshold){
-    waterPlant(); }
+    
+    // Watering the plant
+    Serial.println("Watering plant...");
+    digitalWrite(pumpPin, HIGH);
+    delay(4000);
+    digitalWrite(pumpPin, LOW);
+    Serial.println("Stopped watering.");
+    delay(4000);
+  }
   else {
-    break;
+    return;
   }
 }
 
 
 // Between 7am and 7pm, the device will operate in "day mode". Outside of these hours, the device will run in "Night mode".
-bool dayMode() {
-    tmElements_t tm;
-
-  if (RTC.read(tm)) {
-    if ((tm.Hour >= startTime) && (tm.Hour <= endTime)) {
-      Serial.print("(Day Mode) Time: ");
-      print2digits(tm.Hour);
-      Serial.write(':');
-      print2digits(tm.Minute);
-      Serial.println();
-      return true; 
-      }
-    else {
-      Serial.print ("(Night Mode) Time: ");
-      print2digits(tm.Hour);
-      Serial.write(':');
-      print2digits(tm.Minute);
-      Serial.println(); 
-      return false;
-    }
-  }
-  
-// If there's an issue with the clock module, it will default to day mode.
-// In day mode, the plant will be watered more.
-// In case of clock module failure, over-watering a plant is less harmful than under-watering. 
-  else {
-    if (RTC.chipPresent()) {
-      Serial.println("The DS1307 has stopped.  Please run the SetTime");
-      Serial.println("example to initialize the time and begin running."); 
-      Serial.println();}
-    else {
-      Serial.println("DS1307 read error!  Please check the circuitry.");
-      Serial.println(); }
-    return true; }
-  delay(1000);
+void printTime() {
+  Serial.print("Time: ");
+  print2digits(tm.Hour);
+  Serial.write(':');
+  print2digits(tm.Minute);
+  Serial.println();
 }
+  
+
 
 // For printing the time to the serial monitor. Shows 09:05 instead of 9:5
 void print2digits(int number) {
   if (number >= 0 && number < 10) {
     Serial.write('0'); }
   Serial.print(number);
-}
-
-
-void waterPlant(){
-  Serial.println("Watering plant...");
-  digitalWrite(pumpPin, HIGH);
-  delay(4000);
-  digitalWrite(pumpPin, LOW);
-  Serial.println("Stopped watering.");
-  delay(4000);
 }
